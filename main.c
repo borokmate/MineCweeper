@@ -6,6 +6,8 @@
 #include <time.h>
 #include <stdlib.h>
 
+int open_spaces;
+
 void PrintIndent(int size){
     // printf("The size given: %d\n", size);
     char *indent = malloc(size + 1);
@@ -93,20 +95,39 @@ int GetMapCoords(int x, int y, int width){
     return y * width + x;
 }
 
+// int* PlaceBombs(int width, int height, int size){
+//     int *bombs = malloc(size * sizeof(int));
+//     int rand_x;
+//     int rand_y;
+//     int place;
+//     srand(time(NULL));
+//     for (int i = 0; i < size; i++){
+//         do
+//         {
+//             rand_y = rand() % height;
+//             rand_x = rand() % width;
+//             place = rand_y * width + rand_x;
+//         } while (Contains(bombs, place, size));
+//         bombs[i] = place;
+//     }
+//     return bombs;
+// }
+
 int* PlaceBombs(int width, int height, int size){
     int *bombs = malloc(size * sizeof(int));
-    int rand_x;
-    int rand_y;
-    int place;
+    int spaces = width * height;
+    int *possible_places = malloc(spaces * sizeof(int));
+    for (int i = 0; i < spaces; i++)
+        possible_places[i] = i;
+
     for (int i = 0; i < size; i++){
-        do
-        {
-            rand_y = rand() % height;
-            rand_x = rand() % width;
-            place = rand_y * width + rand_x;
-        } while (Contains(bombs, place, size));
-        bombs[i] = place;
+        int random = rand() % (spaces - i);
+        bombs[i] = possible_places[random];
+        int temp = possible_places[spaces - 1 - i];
+        possible_places[spaces - 1 - i] = possible_places[random];
+        possible_places[random] = temp;
     }
+    free(possible_places);
     return bombs;
 }
 
@@ -127,8 +148,47 @@ int GetBombAmountsAtCoord(int* bombs, int x, int y, int width, int size){
     return bombs_amount;
 }
 
-void FloodZeros(char *map, int width, int height, int *possible_coords, int size){
-    // if ( )
+void AskForFlag(int *flag){
+    char mango;
+    do{
+        printf("Flag or bomb (f or b): ");
+        while ((mango = getchar()) != '\n' && mango != EOF);
+        mango = getchar();
+    } while (mango != 'f' && mango != 'b');
+    *flag = (mango == 'f');
+}
+
+void RevealBombs(char *map, int *bombs, int size_bombs){
+    for (int i = 0; i < size_bombs; i++){
+        map[bombs[i]] = 'B';
+    }
+}
+
+void FloodZeros(char *map, int *bombs, int size_bomb, int x, int y, int width, int height, int *possible_coords){
+    if (x < 0 || y < 0) return;
+    if (width <= x || height <= y) return;
+    int coord = GetMapCoords(x, y, width);
+    if (Contains(bombs, coord, size_bomb)){
+        RevealBombs(map, bombs, size_bomb);
+        return;
+    }
+    int mango = GetBombAmountsAtCoord(bombs, x, y, width, size_bomb);
+    if (possible_coords[coord] != -1) return;
+    if (mango != 0){
+        SetMapAtCoord(map, x, y, width, mango + 48);
+        possible_coords[coord] = 0;
+        open_spaces--;
+        return;
+    }
+    
+    map[coord] = ' ';
+    open_spaces--;
+    possible_coords[coord] = 0;
+
+    FloodZeros(map, bombs, size_bomb, x + 1, y    , width, height, possible_coords);
+    FloodZeros(map, bombs, size_bomb, x - 1, y    , width, height, possible_coords);
+    FloodZeros(map, bombs, size_bomb, x    , y + 1, width, height, possible_coords);
+    FloodZeros(map, bombs, size_bomb, x    , y - 1, width, height, possible_coords);
 }
 
 int main(){
@@ -137,25 +197,47 @@ int main(){
     int height;
     int x;
     int y;
-    int bomb_count = 5;
+    int bomb_count = 2;
+    printf("How many bombs: ");
+    scanf("%d", &bomb_count);
     int mango;
+    int flag;
+
+    srand(time(NULL));
     
     GetSize(&width, &height);
     int size = width * height;
-    int *possible_coords = malloc(size);
-    memset(possible_coords, -1, size);
+    open_spaces = size - bomb_count;
+    int *possible_coords = malloc(size * sizeof(int));
+    memset(possible_coords, -1, size * sizeof(int));
 
     char* map = CreateMap(width, height);
     int* bombs = PlaceBombs(width, height, bomb_count);
     PrintMap(map, width, height);
 
-    while (1 == 1){
+    while (1){
         GetCoords(&x, &y, width, height);
+        AskForFlag(&flag);
         mango = GetBombAmountsAtCoord(bombs, x, y, width, bomb_count) + 48;
-        SetMapAtCoord(map, x, y, width, mango);
-        if (mango + 1 == 67)
+        if (flag == 1){
+            SetMapAtCoord(map, x, y, width, 'F');
+        } 
+        else {
+            FloodZeros(map, bombs, bomb_count, x, y, width, height, possible_coords);
+        } 
+        if (mango + 1 == 67 && flag == 0){
+            printf("You lose gang!\n");
+            PrintMap(map, width, height);
             break;
+        }
+        else if (open_spaces <= 0){
+            printf("You win gang!\n");
+            PrintMap(map, width, height);
+            break;
+        }
+
         PrintMap(map, width, height);
+        printf("Remaining: %d\n", open_spaces);
     }
     
     free(possible_coords);
