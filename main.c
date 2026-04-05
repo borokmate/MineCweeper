@@ -242,7 +242,7 @@ void GetInput(int *x, int *y, int *flag){
 
         // if (ch == )
 
-        printf("The character: %d\n", ch);
+        // printf("The character: %d\n", ch);
 
         if(ch == -32)
         {
@@ -301,8 +301,8 @@ void clear(){
 }
 
 void InputLoop(char *map, int *x, int *y, int width, int height, int *flag){
-    int add_x;
-    int add_y;
+    int add_x = 0;
+    int add_y = 0;
     while (1){
         GetInput(&add_x, &add_y, flag);
         *x += add_x;
@@ -350,17 +350,23 @@ int main(){
         mango = GetBombAmountsAtCoord(bombs, x, y, width, bomb_count) + 48;
         
         if (flag == 1){
-            SetMapAtCoord(map, x, y, width, 'F');
+            
+            if (map[GetMapCoords(x, y, width)] == 'F')
+                SetMapAtCoord(map, x, y, width, 'O');
+            else if (map[GetMapCoords(x, y, width)] == 'O')
+                SetMapAtCoord(map, x, y, width, 'F');
         } 
         else {
             FloodZeros(map, bombs, bomb_count, x, y, width, height, possible_coords);
         } 
         if (mango + 1 == 67 && flag == 0){
+            clear();
             printf("You lose gang!\n");
             PrintMap(map, width, height);
             break;
         }
         else if (open_spaces <= 0){
+            clear();
             printf("You win gang!\n");
             PrintMap(map, width, height);
             break;
@@ -368,8 +374,9 @@ int main(){
 
         flag = -1;
 
-        PrintMap(map, width, height);
-        printf("Remaining: %d\n", open_spaces);
+        clear();
+        PrintMap2(map, width, height, x, y);
+        // printf("Remaining: %d\n", open_spaces);
     }
     
     free(possible_coords);
