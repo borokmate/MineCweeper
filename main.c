@@ -5,6 +5,7 @@
 #include <math.h>
 #include <time.h>
 #include <stdlib.h>
+#include <conio.h>
 
 int open_spaces;
 
@@ -51,6 +52,8 @@ void PrintMap(char *map, int width, int height){
     }
 }
 
+
+
 void GetSize(int *width, int *height){
     printf("Enter width: ");
     scanf("%d", width);
@@ -93,6 +96,45 @@ void SetMapAtCoord(char* map, int x, int y, int width, char c){
 
 int GetMapCoords(int x, int y, int width){
     return y * width + x;
+}
+
+void PrintMap2(char *map, int width, int height, int x, int y){
+    int mapPos = GetMapCoords(x, y, width);
+
+    PrintIndent((int)log10((double)height) + 2);
+    printf("|");
+    for (int i = 0; i < width; i++)
+        printf("%c|", i + 65);
+    printf("\n");
+    PrintIndent((int)log10((double)height) + 2);
+    for (int k = 0; k < width * 2 + 1; k++)
+        printf("-");
+    printf("\n");
+
+    for (int i = 0; i < height; i++){
+        printf("%d", i + 1);
+        PrintIndent((int)log10((double)height) - (int)log10((double)i + 1) + 1);
+        printf("|");
+        for (int j = 0; j < width; j++){
+            
+            printf("\033[37m");
+    
+            if (GetMapCoords(j, i, width) == mapPos){
+                printf("\033[42m");  // Green background for highlighted cell
+            }
+            
+            printf("%c", map[width * i + j]);
+            
+            printf("\033[0m");       // Reset all formatting
+            printf("|");
+            printf("\e[37m");
+        }
+        printf("\n");
+        PrintIndent((int)log10((double)height) + 2);
+        for (int k = 0; k < width * 2 + 1; k++)
+            printf("-");
+        printf("\n");
+    }
 }
 
 // int* PlaceBombs(int width, int height, int size){
@@ -191,17 +233,105 @@ void FloodZeros(char *map, int *bombs, int size_bomb, int x, int y, int width, i
     FloodZeros(map, bombs, size_bomb, x    , y - 1, width, height, possible_coords);
 }
 
+void GetInput(int *x, int *y, int *flag){
+    char ch;
+
+    if(!kbhit()){
+
+        ch = getch();
+
+        // if (ch == )
+
+        printf("The character: %d\n", ch);
+
+        if(ch == -32)
+        {
+            ch = getch();
+
+            if(ch==80) // down
+            {
+                *y = 1;
+            }
+
+            else if(ch==72) // up
+            {
+                *y = -1;
+            }
+
+            else if(ch==75) // left
+            {
+                *x = -1;
+            }   
+                
+            
+            else if(ch==77) // right
+            {
+                *x = 1;
+            }    
+        }
+
+        if (ch == 3)
+            exit(0);
+
+        if (ch == 102)
+            *flag = 1;
+
+        else if (ch == 98)
+            *flag = 0;
+
+        
+    }
+}
+
+void Clamp(int *value, int min, int max){
+    if (*value < min)
+        *value = min;
+    else if (max < *value)
+        *value = max;
+}
+
+void clear(){
+    #if defined(__linux__) || defined(__unix__) || defined(__APPLE__)
+        system("clear");
+    #endif
+
+    #if defined(_WIN32) || defined(_WIN64)
+        system("cls");
+    #endif
+}
+
+void InputLoop(char *map, int *x, int *y, int width, int height, int *flag){
+    int add_x;
+    int add_y;
+    while (1){
+        GetInput(&add_x, &add_y, flag);
+        *x += add_x;
+        *y += add_y;
+
+        Clamp(x, 0, width - 1);
+        Clamp(y, 0, height - 1);
+
+        if (*flag != -1)
+            return;
+
+        clear();
+        PrintMap2(map, width, height, *x, *y);
+        add_x = 0;
+        add_y = 0;
+    }
+}
+
 int main(){
     printf("Hello World\n");
     int width;
     int height;
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
     int bomb_count = 2;
     printf("How many bombs: ");
     scanf("%d", &bomb_count);
     int mango;
-    int flag;
+    int flag = -1;
 
     srand(time(NULL));
     
@@ -216,9 +346,9 @@ int main(){
     PrintMap(map, width, height);
 
     while (1){
-        GetCoords(&x, &y, width, height);
-        AskForFlag(&flag);
+        InputLoop(map, &x, &y, width, height, &flag);
         mango = GetBombAmountsAtCoord(bombs, x, y, width, bomb_count) + 48;
+        
         if (flag == 1){
             SetMapAtCoord(map, x, y, width, 'F');
         } 
@@ -235,6 +365,8 @@ int main(){
             PrintMap(map, width, height);
             break;
         }
+
+        flag = -1;
 
         PrintMap(map, width, height);
         printf("Remaining: %d\n", open_spaces);
